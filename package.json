@@ -25,7 +25,8 @@
     "build": "vite build && tsc -p tsconfig.build.json && cp src/styles.css dist/styles.css",
     "build:demo": "vite build --config demo/vite.config.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "npm run build"
   },
   "peerDependencies": {
     "react": ">=18",
