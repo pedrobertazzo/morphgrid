@@ -27,10 +27,18 @@ export function FitText({ children, min = 11, max = 34, className, style }: FitT
       t.style.fontSize = lo + 'px';
     };
     fit();
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(fit);
-    ro.observe(b);
-    return () => ro.disconnect();
+    let alive = true;
+    const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
+    const refit = () => alive && fit();
+    fonts?.ready.then(refit);
+    fonts?.addEventListener?.('loadingdone', refit);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
+    ro?.observe(b);
+    return () => {
+      alive = false;
+      fonts?.removeEventListener?.('loadingdone', refit);
+      ro?.disconnect();
+    };
   }, [children, min, max]);
 
   return (
