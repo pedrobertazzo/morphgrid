@@ -536,6 +536,7 @@ function BlockImpl<T, V extends string>(p: BlockProps<T, V>) {
         if (!(e.target as Element).closest(NODRAG)) handlers.onDoubleClick(itemId);
       }}
       onContextMenu={(e) => dragging && e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
     >
       {Chrome ? (
         <Chrome
