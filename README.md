@@ -58,15 +58,10 @@ Dragging, keyboard moves and the "change data" control are all just edits to the
 
 ## Getting started
 
-morphgrid needs React 18 or newer. It isn't published to npm yet, so build it and install it from the folder:
+morphgrid needs React 18 or newer.
 
 ```bash
-cd morphgrid
-npm install
-npm run build              # writes dist/: ESM, CJS, type definitions and styles.css
-
-cd ../your-app
-npm install ../morphgrid
+npm install morphgrid
 ```
 
 Then import the component and the stylesheet once:

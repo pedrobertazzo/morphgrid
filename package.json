@@ -2,6 +2,26 @@
   "name": "morphgrid",
   "version": "0.1.0",
   "description": "A React grid where the cell decides how an item is shown. Drag items between cells and they morph to fit.",
+  "keywords": [
+    "react",
+    "grid",
+    "dashboard",
+    "drag-and-drop",
+    "layout",
+    "morph",
+    "css-grid",
+    "data-visualization"
+  ],
+  "author": "Pedro Geciauskas Bertazzo",
+  "license": "MIT",
+  "homepage": "https://pedrobertazzo.github.io/morphgrid/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pedrobertazzo/morphgrid.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pedrobertazzo/morphgrid/issues"
+  },
   "type": "module",
   "main": "./dist/morphgrid.cjs",
   "module": "./dist/morphgrid.js",
@@ -15,7 +35,9 @@
     "./styles.css": "./dist/styles.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": [
     "**/*.css"
@@ -26,13 +48,12 @@
     "build:demo": "vite build --config demo/vite.config.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepare": "npm run build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "peerDependencies": {
     "react": ">=18",
     "react-dom": ">=18"
   },
-  "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.17.6",
     "@types/react": "^18.3.12",
