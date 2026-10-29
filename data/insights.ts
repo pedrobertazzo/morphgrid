@@ -2,8 +2,6 @@ import { parseNumber, parseTime } from './profile';
 import { isId, words } from './semantics';
 import type { Entry, Field, Insight, MorphDataset, Point, Row, Trend } from './types';
 
-// ---------- reading and formatting values ----------
-
 export function num(r: Row, f: Field): number | null {
   return parseNumber(r[f.id]);
 }
@@ -56,8 +54,6 @@ export const human = (f: Field) => {
 const lower = (f: Field) => words(f.id).join(' ');
 const plural = (w: string) => (/[^aeiou]y$/.test(w) ? w.slice(0, -1) + 'ies' : /(s|x|ch|sh)$/.test(w) ? w + 'es' : w + 's');
 
-// ---------- aggregation ----------
-
 type Acc = { sum: number; n: number };
 
 function group(rows: Row[], key: (r: Row) => string | null, m: Field | null) {
@@ -100,8 +96,6 @@ function pearson(xs: number[], ys: number[]) {
 
 const cv = (f: Field) => (f.numeric && f.numeric.mean ? f.numeric.std / Math.abs(f.numeric.mean) : 0);
 
-// ---------- time bins ----------
-
 const DAY = 86400000;
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -135,8 +129,6 @@ export function binLabel(t: number, bin: Trend['bin']) {
   if (bin === 'day') return `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
   return `${String(d.getUTCHours()).padStart(2, '0')}:00`;
 }
-
-// ---------- generators ----------
 
 interface Ctx {
   rows: Row[];

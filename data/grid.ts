@@ -5,7 +5,6 @@ import type { Facet, Insight } from './types';
 
 export type ViewKey = 'number' | 'bars' | 'list' | 'line' | 'scatter' | 'dots' | 'text' | 'progress';
 
-// What each view needs from an item.
 export const CAPABILITIES: Record<ViewKey, { label: string; needs: Facet[] }> = {
   number: { label: 'Number', needs: ['value'] },
   bars: { label: 'Bars', needs: ['series'] },
@@ -68,8 +67,6 @@ export function resolve(i: Insight, cellView: ViewKey): Resolved {
 }
 
 export const viewsFor = (i: Insight) => VIEW_KEYS.filter((v) => fits(i, v));
-
-// ---- Rows: each grid line has one view, set from its header, and a few slots for data ----
 
 export const MAX_SLOTS = 4;
 

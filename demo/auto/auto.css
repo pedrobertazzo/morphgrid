@@ -22,7 +22,6 @@ main.auto { max-width: 1200px; }
 .auto-grid { margin-bottom: 8px; }
 .auto-grid .mg-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* views */
 .vb2 { flex: 1; min-height: 0; display: flex; gap: 6px; }
 .vb2 .c { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; }
 .vb2 .w { flex: 1; display: flex; align-items: flex-end; min-height: 0; }
@@ -70,7 +69,6 @@ main.auto { max-width: 1200px; }
 .dots .t i { position: absolute; top: 50%; width: 9px; height: 9px; border-radius: 50%; background: var(--mg-accent); transform: translate(-50%, -10%); }
 .dots .t i.pk { background: var(--hi); }
 
-/* rows: the header owns the type, slots hold data */
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 6px; font-size: 13px; color: var(--muted); }
 .toolbar label { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink); }
 .toolbar select, .toolbar button { font: inherit; font-weight: 600; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
@@ -91,7 +89,6 @@ main.auto { max-width: 1200px; }
 .slotc .num b { font-size: min(17cqw, 40cqh); white-space: nowrap; }
 .mg-block:has(.fb) { border-style: dashed; }
 
-/* panels */
 .panels { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
 .panels > section, .llm { min-width: 0; }
 @media (max-width: 900px) { .panels { grid-template-columns: 1fr; } }

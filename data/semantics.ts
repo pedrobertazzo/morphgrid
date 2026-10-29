@@ -81,7 +81,6 @@ function classify(p: FieldProfile): Rule {
     const concept = has(w, ADDITIVE) ?? has(w, NON_ADDITIVE);
     return { role: 'measure', confidence: concept ? 0.9 : 0.6, reason: concept ? `numeric, concept "${concept}"` : 'numeric, meaning unknown', concept };
   }
-  // strings
   if (s.length && s.every((v) => URL.test(v))) {
     const img = s.every((v) => IMG_EXT.test(v)) || !!has(w, IMAGE);
     return { role: img ? 'image' : 'url', confidence: 0.95, reason: img ? 'image links' : 'web links' };
@@ -138,8 +137,6 @@ export function infer(profiles: FieldProfile[]): Field[] {
     return f;
   });
 }
-
-// ---- Optional semantic refinement (LLM or anything else) ----
 
 export interface SemanticHint {
   fieldId: string;

@@ -78,7 +78,7 @@ export function findRow<V extends string>(rows: Row<V>[], cellId: string): { row
   return null;
 }
 
-// Items per row, slot by slot. Handy for saving a board.
+// Items per row, slot by slot.
 export function rowItems(rows: Row[], a: Assignment): (string | null)[][] {
   return rows.map((r) => rowSlotIds(r).map((id) => a[id] ?? null));
 }
