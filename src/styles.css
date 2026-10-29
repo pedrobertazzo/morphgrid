@@ -48,12 +48,7 @@
 }
 .mg-hint { opacity: 0; transition: opacity 0.2s; font-size: 13px; }
 .mg-cell[data-over] .mg-hint,
-.mg-cell[data-empty] .mg-cell[data-refused] {
-  border: 1.5px dashed var(--mg-muted);
-  background: color-mix(in srgb, var(--mg-muted) 10%, transparent);
-  cursor: not-allowed;
-}
-.mg-hint { opacity: 1; }
+.mg-cell[data-empty] .mg-hint { opacity: 1; }
 
 .mg-block {
   position: absolute;
@@ -155,6 +150,40 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* RowGrid: a header line per row, then its slots */
+.mg-rows .mg-cell.mg-rowhead,
+.mg-rows .mg-cell.mg-rowhead[data-over],
+.mg-rows .mg-cell.mg-rowhead[data-refused] { border: 0; background: none; padding: 10px 2px 0; cursor: default; }
+.mg-rowbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--mg-ink);
+  border-bottom: 2px solid var(--mg-line);
+  padding-bottom: 4px;
+}
+.mg-rowtype { font: inherit; font-size: 17px; font-weight: 700; color: inherit; background: transparent; border: 0; padding: 0; min-width: 0; }
+select.mg-rowtype { cursor: pointer; field-sizing: content; }
+select.mg-rowtype:focus-visible { outline: 2px solid var(--mg-accent); border-radius: 4px; }
+.mg-rowmeta { font-size: 12px; color: var(--mg-muted); white-space: nowrap; }
+.mg-rowtools { margin-left: auto; display: flex; gap: 4px; }
+.mg-rowtools button {
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--mg-line);
+  background: transparent;
+  color: var(--mg-ink);
+  cursor: pointer;
+}
+.mg-rowtools button:disabled { opacity: 0.35; cursor: default; }
+.mg-rowtools button:focus-visible { outline: 2px solid var(--mg-accent); }
+.mg-cell.mg-slot[data-empty] { justify-content: center; align-items: center; }
 
 @media (prefers-reduced-motion: reduce) {
   .mg-block, .mg-cell { transition: none; }

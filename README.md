@@ -22,15 +22,16 @@ It started as a running dashboard, but nothing in it is about dashboards. The de
 6. [State: controlled and uncontrolled](#state-controlled-and-uncontrolled)
 7. [Rules: locked cells and accepts](#rules-locked-cells-and-accepts)
 8. [More items than cells](#more-items-than-cells)
-9. [Opening an item for more detail](#opening-an-item-for-more-detail)
-10. [Custom chrome](#custom-chrome)
-11. [Accessibility and announcements](#accessibility-and-announcements)
-12. [Theming](#theming)
-13. [Helpers](#helpers)
-14. [The core functions](#the-core-functions)
-15. [API reference](#api-reference)
-16. [How the interactions behave](#how-the-interactions-behave)
-17. [Development](#development)
+9. [Rows: a grid people can rearrange](#rows-a-grid-people-can-rearrange)
+10. [Opening an item for more detail](#opening-an-item-for-more-detail)
+11. [Custom chrome](#custom-chrome)
+12. [Accessibility and announcements](#accessibility-and-announcements)
+13. [Theming](#theming)
+14. [Helpers](#helpers)
+15. [The core functions](#the-core-functions)
+16. [API reference](#api-reference)
+17. [How the interactions behave](#how-the-interactions-behave)
+18. [Development](#development)
 
 ---
 
@@ -283,7 +284,7 @@ const [layout, setLayout] = useState<Assignment>({ main: 'ben', side: 'ana', cor
 />
 ```
 
-`detail.reason` is `'drag'`, `'keyboard'` or `'cycle'`. `detail.itemId` is the item the person acted on, and `detail.moves` lists every item that changed cell. A `to` of `null` means the item left the grid.
+`detail.reason` is `'drag'`, `'keyboard'`, `'cycle'` or (in a `RowGrid`) `'rows'`. `detail.itemId` is the item the person acted on, and `detail.moves` lists every item that changed cell. A `to` of `null` means the item left the grid.
 
 The grid tidies up whatever you pass in: unknown cells get `null`, and items that no longer exist (or appear twice) are dropped.
 
@@ -315,6 +316,59 @@ Pass as many items as you like. Extra items wait off the grid, and **‹ change 
 - If it's off the grid, it comes in and the current item leaves.
 
 Either way nothing is duplicated, and items a rule forbids are skipped. Cycling follows the order of `items`. Use `cycleOrder={['a', 'c', 'b']}` to change it, or `cycle={false}` to hide the control.
+
+---
+
+## Rows: a grid people can rearrange
+
+A free-form grid is great when you design the layout. When the people using it should rearrange it, a grid made of **rows** is easier to follow: each row has a header that sets one view for everything in it, and a few slots for items.
+
+```
+ Numbers ▾   4 of 4                      − + ×
+ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+ │  1,284 │ │    312 │ │    48% │ │     17 │
+ └────────┘ └────────┘ └────────┘ └────────┘
+ Charts ▾   2 of 2                       − + ×
+ ┌───────────────────┐ ┌───────────────────┐
+ │  ▁▃▅▇▅▃           │ │  ▂▄▆█▆▄▂          │
+ └───────────────────┘ └───────────────────┘
+```
+
+Change a row's view from its header and every item in it redraws. Drag an item into another row and it takes that row's view. Add or remove slots, or remove the row, from the buttons on the right.
+
+```tsx
+import { RowGrid, type Row } from 'morphgrid';
+
+const [rows, setRows] = useState<Row<View>[]>([
+  { id: 'kpis', view: 'number', slots: 4 },
+  { id: 'trends', view: 'chart', slots: 2 },
+]);
+
+<RowGrid<Metric, View>
+  rows={rows}
+  onRowsChange={setRows}
+  items={metrics}
+  getItemId={(m) => m.key}
+  views={{ number: NumberView, chart: ChartView, text: TextView }}
+  viewLabels={{ number: 'Numbers', chart: 'Charts', text: 'Sentences' }}
+  rowLayout={{ height: (v) => (v === 'number' ? 130 : 240) }}
+/>
+```
+
+`RowGrid` takes every `MorphGrid` prop except `cells`, `layout` and `renderCell`. Without `onRowsChange` the headers are read-only.
+
+**Layout.** Each row is a full-width header line, then its slots side by side on a 12-column grid. Below 720px, slots wrap one per line; set how many fit per line with `rowLayout.narrow.perLine`, which can depend on the view (two big numbers side by side, charts one per line):
+
+```ts
+rowLayout={{
+  height: (v) => (v === 'number' ? 130 : 240),
+  narrow: { maxWidth: 720, perLine: (v) => (v === 'number' ? 2 : 1) },
+}}
+```
+
+**State.** The assignment uses cell ids `${row.id}-${slot}` (headers are `${row.id}-h` and never hold items). `fillRows(rows, items)` builds one from a list per row, and `rowItems(rows, assignment)` reads it back, which is handy for saving a board to a URL. When a slot or row goes away, the items in it leave the grid and `onChange` fires with `reason: 'rows'`.
+
+**Customizing.** `renderHeader` replaces the header (it receives the row, how many slots are filled, and `setView`, `setSlots` and `remove`); wrap `DefaultRowHeader` to add to it. `renderSlot` draws empty slots. `viewOrder` sets which views the header offers, `maxSlots` caps slots per row (4), and `rowLabels` translates the header's labels.
 
 ---
 
@@ -539,6 +593,23 @@ cycleItem(a, 'corner', ['ana', 'ben', 'cy', 'dee'], 1);   // { next: { …, corn
 ### `GridLayout`
 
 `columns`, `rows`, `rowHeight`, `gap`, `templateAreas`, `areas`, `breakpoints: { maxWidth, ...any of these }[]`.
+
+### `<RowGrid>` props
+
+Everything `<MorphGrid>` takes except `cells`, `layout` and `renderCell`, plus:
+
+| Prop | Type | Default | |
+| --- | --- | --- | --- |
+| `rows` | `Row<V>[]` | required | `{ id, view, slots }`. Ids become grid area names: letters, digits, `-`, `_`. |
+| `onRowsChange` | `(rows) => void` | | Makes headers editable. |
+| `rowLayout` | `RowLayoutOptions<V>` | | `columns` (12), `gap` (12), `height` (200 or per view), `narrow` (`{ maxWidth, columns, perLine, height }` or `false`). |
+| `viewOrder` | `V[]` | keys of `views` | Views the header offers. |
+| `maxSlots` | `number` | `4` | |
+| `renderHeader` | `(p: RowHeaderProps) => ReactNode` | `DefaultRowHeader` | |
+| `renderSlot` | `(row, slot, { over, empty }) => ReactNode` | "Drop here" | Empty slots. |
+| `rowLabels` | `Partial<RowLabels>` | English defaults | `type`, `fewer`, `more`, `remove`, `drop` |
+
+Row helpers: `rowCells`, `rowLayout`, `rowHeadId`, `rowSlotId`, `rowSlotIds`, `findRow`, `fillRows`, `rowItems`, `pruneRows`.
 
 ---
 

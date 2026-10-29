@@ -15,5 +15,5 @@
     "types": ["node"],
     "paths": { "morphgrid": ["./src/index.ts"] }
   },
-  "include": ["src", "demo", "tests"]
+  "include": ["src", "demo", "tests", "data"]
 }
