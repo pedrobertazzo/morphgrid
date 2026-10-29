@@ -546,6 +546,7 @@ cycleItem(a, 'corner', ['ana', 'ben', 'cy', 'dee'], 1);   // { next: { …, corn
 | `resolveLayout(layout, width)` | Applies breakpoints. |
 | `gridStyle(config)` | Turns a layout into CSS grid properties. |
 | `hitTest(rects, x, y)` / `findNeighbor(rects, from, dir)` | Geometry used for drag and arrow keys. |
+| `findMove(assignment, rects, itemId, dir, canPlace?)` | Where an arrow key sends an item: the nearest cell that way that would take it. |
 
 ---
 
@@ -620,6 +621,7 @@ These details came out of the original prototype and are deliberate:
 - **Previews are relative to where the drag started.** Wander across five cells and only the one under the pointer is swapped; the others spring back. Nothing gets scrambled.
 - **Gaps don't flicker.** With the pointer between cells, the preview holds its last state.
 - **Refusing cells spring back.** Over a locked or refusing cell, the preview returns home.
+- **Arrow keys skip what can't take the item.** A locked cell or a row header in the way doesn't stop a keyboard move; the item goes to the nearest cell beyond it that accepts it.
 - **Clicks stay clicks.** A mouse drag starts only after 4px of movement, so clicking and double-clicking still work.
 - **Touch scrolls.** On touch, a drag starts after a short hold, so a swipe still scrolls the page.
 - **Cycling doesn't fly.** Items swapped by "change data" switch in place with a short fade instead of sliding across the grid.

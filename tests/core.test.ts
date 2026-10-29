@@ -3,6 +3,7 @@ import {
   cycleItem,
   defaultAssignment,
   diff,
+  findMove,
   findNeighbor,
   getShape,
   gridStyle,
@@ -80,6 +81,22 @@ describe('helpers', () => {
     expect(findNeighbor(rects, 'a', 'right')).toBe('b');
     expect(findNeighbor(rects, 'b', 'down')).toBe('c');
     expect(findNeighbor(rects, 'a', 'left')).toBeNull();
+  });
+  it('findMove skips cells that would refuse the item', () => {
+    // A slot centred over a locked full-width header, then two slots under that: like the middle of a RowGrid.
+    const rects = {
+      s1: { left: 0, top: 0, width: 210, height: 100 },
+      head: { left: 0, top: 110, width: 210, height: 30 },
+      s2: { left: 0, top: 150, width: 100, height: 100 },
+      s3: { left: 110, top: 150, width: 100, height: 100 },
+    };
+    const a = { s1: 'x', head: null, s2: 'y', s3: null };
+    const open = (_item: string, cell: string) => cell !== 'head';
+    expect(findNeighbor(rects, 's1', 'down')).toBe('head');
+    expect(findMove(a, rects, 'x', 'down', open)).toBe('s2');
+    expect(findMove(a, rects, 'y', 'up', open)).toBe('s1');
+    expect(findMove(a, rects, 'x', 'down', (_item, cell) => cell === 's3' || cell === 's1')).toBe('s3');
+    expect(findMove(a, rects, 'nope', 'down', open)).toBeNull();
   });
   it('getShape', () => {
     expect(getShape(300, 100)).toBe('wide');

@@ -23,7 +23,7 @@ import {
   defaultAssignment,
   diff,
   findCell,
-  findNeighbor,
+  findMove,
   getShape,
   gridStyle,
   hitTest,
@@ -341,7 +341,7 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
       e.preventDefault();
       const from = findCell(L.assignment, itemId);
       if (!from || L.cellById.get(from)?.locked) return;
-      const to = findNeighbor(L.rects, from, dir);
+      const to = findMove(L.assignment, L.rects, itemId, dir, L.canPlace);
       const next = to && placeItem(L.assignment, itemId, to, L.canPlace);
       if (next) L.commit(next, 'keyboard', itemId, L.assignment);
     };

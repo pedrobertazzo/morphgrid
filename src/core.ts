@@ -124,6 +124,22 @@ export function findNeighbor(rects: Record<string, Rect>, from: string, dir: Dir
   return best;
 }
 
+// Where an arrow key sends an item: the nearest cell that direction that would take it. Locked and
+// refusing cells are skipped, so a row of headers or a locked cell doesn't stop keyboard moves.
+export function findMove(
+  a: Assignment,
+  rects: Record<string, Rect>,
+  itemId: string,
+  dir: Direction,
+  canPlace: CanPlace = allow,
+): string | null {
+  const from = findCell(a, itemId);
+  if (!from || !rects[from]) return null;
+  const open: Record<string, Rect> = {};
+  for (const id in rects) if (id === from || placeItem(a, itemId, id, canPlace)) open[id] = rects[id];
+  return findNeighbor(open, from, dir);
+}
+
 export type Shape = 'wide' | 'tall' | 'square';
 export type ShapeThresholds = { wide: number; tall: number };
 
