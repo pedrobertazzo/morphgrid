@@ -114,15 +114,15 @@ export function Board({ insights, onOpen }: { insights: Insight[]; onOpen: (i: I
             </>
           );
         }}
-        renderSlot={(row, slot, state) =>
-          state.over ? (
-            <span className="emptyslot">Drop to show as {lower(row.view)}</span>
+        renderSlot={(p) =>
+          p.over ? (
+            <span className="emptyslot">Drop to show as {lower(p.row.view)}</span>
           ) : (
             <div className="emptyslot">
               <span>Drag data here, or</span>
-              <select aria-label={`Add data to this ${lower(row.view)} slot`} value="" onChange={(e) => api.setData(rowSlotIds(row)[slot], e.target.value)}>
+              <select aria-label={`Add data to this ${lower(p.row.view)} slot`} value="" onChange={(e) => api.setData(p.cellId, e.target.value)}>
                 <option value="">pick data…</option>
-                <DataOptions view={row.view} items={insights} />
+                <DataOptions view={p.row.view} items={insights} />
               </select>
             </div>
           )

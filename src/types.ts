@@ -38,7 +38,7 @@ export interface ChromeProps<T, V extends string = string> extends ViewProps<T, 
   labels: Labels;
 }
 
-export type ChangeReason = 'drag' | 'keyboard' | 'cycle' | 'rows';
+export type ChangeReason = 'drag' | 'keyboard' | 'cycle' | 'rows' | 'pick';
 
 export interface ChangeDetail {
   reason: ChangeReason;

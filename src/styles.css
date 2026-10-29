@@ -184,6 +184,20 @@ select.mg-rowtype:focus-visible { outline: 2px solid var(--mg-accent); border-ra
 .mg-rowtools button:disabled { opacity: 0.35; cursor: default; }
 .mg-rowtools button:focus-visible { outline: 2px solid var(--mg-accent); }
 .mg-cell.mg-slot[data-empty] { justify-content: center; align-items: center; }
+.mg-slotpick { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; }
+.mg-slotpick select {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mg-accent);
+  background: transparent;
+  border: 1px solid var(--mg-line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  max-width: 100%;
+  cursor: pointer;
+}
+.mg-slotpick select:focus-visible { outline: 2px solid var(--mg-accent); }
 
 @media (prefers-reduced-motion: reduce) {
   .mg-block, .mg-cell { transition: none; }

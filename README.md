@@ -284,7 +284,7 @@ const [layout, setLayout] = useState<Assignment>({ main: 'ben', side: 'ana', cor
 />
 ```
 
-`detail.reason` is `'drag'`, `'keyboard'`, `'cycle'` or (in a `RowGrid`) `'rows'`. `detail.itemId` is the item the person acted on, and `detail.moves` lists every item that changed cell. A `to` of `null` means the item left the grid.
+`detail.reason` is `'drag'`, `'keyboard'`, `'cycle'` or (in a `RowGrid`) `'rows'` or `'pick'`. `detail.itemId` is the item the person acted on, and `detail.moves` lists every item that changed cell. A `to` of `null` means the item left the grid.
 
 The grid tidies up whatever you pass in: unknown cells get `null`, and items that no longer exist (or appear twice) are dropped.
 
@@ -368,7 +368,9 @@ rowLayout={{
 
 **State.** The assignment uses cell ids `${row.id}-${slot}` (headers are `${row.id}-h` and never hold items). `fillRows(rows, items)` builds one from a list per row, and `rowItems(rows, assignment)` reads it back, which is handy for saving a board to a URL. When a slot or row goes away, the items in it leave the grid and `onChange` fires with `reason: 'rows'`.
 
-**Customizing.** `renderHeader` replaces the header (it receives the row, how many slots are filled, and `setView`, `setSlots` and `remove`); wrap `DefaultRowHeader` to add to it. `renderSlot` draws empty slots. `viewOrder` sets which views the header offers, `maxSlots` caps slots per row (4), and `rowLabels` translates the header's labels.
+**Getting items back.** Items that leave the grid aren't lost. Pressing **+** on a row fills the new slot with an item that isn't on the grid (the first in cycle order, or whichever `fillSlot(row, offGrid)` picks; `fillSlot={false}` leaves it empty). An empty slot shows "Drop here" and an **Add…** menu of the items not on the grid; picking one fires `onChange` with `reason: 'pick'`.
+
+**Customizing.** `renderHeader` replaces the header (it receives the row, how many slots are filled, and `setView`, `setSlots` and `remove`); wrap `DefaultRowHeader` to add to it. `renderSlot` draws empty slots: it receives the row, `offGrid` items and `place(item)`; wrap `DefaultSlot` to keep the menu. `viewOrder` sets which views the header offers, `maxSlots` caps slots per row (4), and `rowLabels` translates the header's labels.
 
 ---
 
@@ -607,8 +609,9 @@ Everything `<MorphGrid>` takes except `cells`, `layout` and `renderCell`, plus:
 | `viewOrder` | `V[]` | keys of `views` | Views the header offers. |
 | `maxSlots` | `number` | `4` | |
 | `renderHeader` | `(p: RowHeaderProps) => ReactNode` | `DefaultRowHeader` | |
-| `renderSlot` | `(row, slot, { over, empty }) => ReactNode` | "Drop here" | Empty slots. |
-| `rowLabels` | `Partial<RowLabels>` | English defaults | `type`, `fewer`, `more`, `remove`, `drop` |
+| `renderSlot` | `(p: SlotProps) => ReactNode` | `DefaultSlot` | Empty slots: `row`, `slot`, `cellId`, `over`, `offGrid`, `place(item)`. |
+| `fillSlot` | `false \| (row, offGrid) => T \| undefined` | first off-grid item | What a slot added with + starts with. |
+| `rowLabels` | `Partial<RowLabels>` | English defaults | `type`, `fewer`, `more`, `remove`, `drop`, `add` |
 
 Row helpers: `rowCells`, `rowLayout`, `rowHeadId`, `rowSlotId`, `rowSlotIds`, `findRow`, `fillRows`, `rowItems`, `pruneRows`.
 

@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { defaultAssignment, diff, type Assignment } from './core';
 import { MorphGrid } from './MorphGrid';
-import { findRow, fillRows, pruneRows, rowCells, rowLayout, rowSlotIds, type Row, type RowLayoutOptions } from './rows';
+import { findRow, fillRows, pruneRows, rowCells, rowLayout, rowSlotId, rowSlotIds, type Row, type RowLayoutOptions } from './rows';
 import type { CellDef, MorphGridProps } from './types';
 
 export interface RowLabels {
@@ -10,6 +10,7 @@ export interface RowLabels {
   more: string;
   remove: string;
   drop: string;
+  add: string;
 }
 
 const DEFAULT_ROW_LABELS: RowLabels = {
@@ -18,6 +19,7 @@ const DEFAULT_ROW_LABELS: RowLabels = {
   more: 'More slots',
   remove: 'Remove row',
   drop: 'Drop here',
+  add: 'Add…',
 };
 
 export interface RowHeaderProps<V extends string = string> {
@@ -34,6 +36,33 @@ export interface RowHeaderProps<V extends string = string> {
   remove: () => void;
 }
 
+export interface SlotProps<T, V extends string = string> {
+  row: Row<V>;
+  slot: number;
+  cellId: string;
+  over: boolean;
+  // Items not on the grid, in cycle order: what this slot can take without moving anything else.
+  offGrid: T[];
+  place: (item: T) => void;
+  labelOf: (item: T) => string;
+  labels: RowLabels;
+}
+
+export function DefaultSlot<T, V extends string>(p: SlotProps<T, V>) {
+  if (p.over || !p.offGrid.length) return <div className="mg-hint">{p.labels.drop}</div>;
+  return (
+    <div className="mg-slotpick">
+      <span className="mg-hint">{p.labels.drop}</span>
+      <select aria-label={p.labels.add} value="" onChange={(e) => e.target.value && p.place(p.offGrid[+e.target.value])}>
+        <option value="">{p.labels.add}</option>
+        {p.offGrid.map((item, i) => (
+          <option key={i} value={i}>{p.labelOf(item)}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export interface RowGridProps<T, V extends string = string>
   extends Omit<MorphGridProps<T, V>, 'cells' | 'layout' | 'renderCell'> {
   rows: Row<V>[];
@@ -43,7 +72,9 @@ export interface RowGridProps<T, V extends string = string>
   maxSlots?: number;
   rowLabels?: Partial<RowLabels>;
   renderHeader?: (p: RowHeaderProps<V>) => ReactNode;
-  renderSlot?: (row: Row<V>, slot: number, state: { over: boolean; empty: boolean }) => ReactNode;
+  renderSlot?: (p: SlotProps<T, V>) => ReactNode;
+  // Which off-grid item a slot added with "+" starts with; false leaves new slots empty.
+  fillSlot?: false | ((row: Row<V>, offGrid: T[]) => T | undefined);
 }
 
 export function DefaultRowHeader<V extends string>(p: RowHeaderProps<V>) {
@@ -76,7 +107,7 @@ export function DefaultRowHeader<V extends string>(p: RowHeaderProps<V>) {
 // by drag, keyboard or cycling, and redraw in the view of the row they land in.
 export function RowGrid<T, V extends string>(props: RowGridProps<T, V>) {
   const {
-    rows, onRowsChange, rowLayout: layoutOpts, viewOrder, maxSlots = 4, renderHeader, renderSlot,
+    rows, onRowsChange, rowLayout: layoutOpts, viewOrder, maxSlots = 4, renderHeader, renderSlot, fillSlot,
     value, defaultValue, onChange, onAnnounce, ...rest
   } = props;
   const labels = useMemo(() => ({ ...DEFAULT_ROW_LABELS, ...props.rowLabels }), [props.rowLabels]);
@@ -102,13 +133,34 @@ export function RowGrid<T, V extends string>(props: RowGridProps<T, V>) {
 
   const views = viewOrder ?? ((typeof props.views === 'function' ? Object.keys(props.viewLabels ?? {}) : Object.keys(props.views)) as V[]);
   const labelOf = (v: V) => props.viewLabels?.[v] ?? v;
+  const itemLabel = (item: T) => props.getItemLabel?.(item) ?? props.getItemId(item);
+  const byId = useMemo(() => new Map(props.items.map((i) => [props.getItemId(i), i])), [props.items, props.getItemId]);
+  const placed = new Set(Object.values(current));
+  const offGrid = (props.cycleOrder ?? itemIds).filter((id) => byId.has(id) && !placed.has(id)).map((id) => byId.get(id)!);
 
-  const change = (next: Row<V>[], message: string) => {
+  // `fill` lists new slots that should start with an off-grid item.
+  const change = (next: Row<V>[], message: string, fill: { row: Row<V>; cellId: string }[] = []) => {
     onRowsChange?.(next);
-    const pruned = pruneRows(current, next, itemIds);
-    const moves = diff(current, pruned);
-    if (moves.length) commit(pruned, { reason: 'rows', itemId: moves[0].itemId, moves });
-    say(message);
+    const out: Record<string, string | null> = { ...pruneRows(current, next, itemIds) };
+    const left = [...offGrid];
+    const added: string[] = [];
+    for (const { row, cellId } of fill) {
+      const item = fillSlot === false ? undefined : fillSlot ? fillSlot(row, left) : left[0];
+      if (!item) continue;
+      left.splice(left.indexOf(item), 1);
+      out[cellId] = props.getItemId(item);
+      added.push(itemLabel(item));
+    }
+    const moves = diff(current, out);
+    if (moves.length) commit(out, { reason: 'rows', itemId: moves[0].itemId, moves });
+    say(message + (added.length ? ` Added ${added.join(', ')}.` : ''));
+  };
+
+  const place = (cellId: string, item: T) => {
+    const id = props.getItemId(item);
+    const next = { ...current, [cellId]: id };
+    commit(next, { reason: 'pick', itemId: id, moves: diff(current, next) });
+    say(`Added ${itemLabel(item)}.`);
   };
 
   const renderCell = (cell: CellDef<V>, state: { over: boolean; empty: boolean }) => {
@@ -117,7 +169,11 @@ export function RowGrid<T, V extends string>(props: RowGridProps<T, V>) {
     const { row, index, slot } = hit;
     if (slot !== null) {
       if (!state.empty) return null;
-      return renderSlot ? renderSlot(row, slot, state) : <div className="mg-hint">{labels.drop}</div>;
+      const p: SlotProps<T, V> = {
+        row, slot, cellId: cell.id, over: state.over, offGrid, labelOf: itemLabel, labels,
+        place: (item) => place(cell.id, item),
+      };
+      return renderSlot ? renderSlot(p) : <DefaultSlot {...p} />;
     }
     const header: RowHeaderProps<V> = {
       row,
@@ -129,7 +185,11 @@ export function RowGrid<T, V extends string>(props: RowGridProps<T, V>) {
       editable: !!onRowsChange && !props.disabled,
       labels,
       setView: (view) => change(rows.map((r) => (r.id === row.id ? { ...r, view } : r)), `Row ${index + 1} now shows ${labelOf(view).toLowerCase()}.`),
-      setSlots: (slots) => change(rows.map((r) => (r.id === row.id ? { ...r, slots } : r)), `Row ${index + 1} has ${slots} slot${slots === 1 ? '' : 's'}.`),
+      setSlots: (slots) => {
+        const grown = { ...row, slots };
+        const fill = Array.from({ length: Math.max(0, slots - row.slots) }, (_, k) => ({ row: grown, cellId: rowSlotId(grown, row.slots + k) }));
+        change(rows.map((r) => (r.id === row.id ? grown : r)), `Row ${index + 1} has ${slots} slot${slots === 1 ? '' : 's'}.`, fill);
+      },
       remove: () => change(rows.filter((r) => r.id !== row.id), `Row ${index + 1} removed.`),
     };
     return renderHeader ? renderHeader(header) : <DefaultRowHeader {...header} />;
