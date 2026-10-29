@@ -621,6 +621,7 @@ These details came out of the original prototype and are deliberate:
 - **Previews are relative to where the drag started.** Wander across five cells and only the one under the pointer is swapped; the others spring back. Nothing gets scrambled.
 - **Gaps don't flicker.** With the pointer between cells, the preview holds its last state.
 - **Refusing cells spring back.** Over a locked or refusing cell, the preview returns home.
+- **Arrow keys go to what lines up.** Down goes to the nearest cell below that overlaps the current one sideways, so it lands in the next row even when a cell farther down sits more directly underneath. Only when nothing lines up does it pick the closest cell by centre.
 - **Arrow keys skip what can't take the item.** A locked cell or a row header in the way doesn't stop a keyboard move; the item goes to the nearest cell beyond it that accepts it.
 - **Clicks stay clicks.** A mouse drag starts only after 4px of movement, so clicking and double-clicking still work.
 - **Touch scrolls.** On touch, a drag starts after a short hold, so a swipe still scrolls the page.

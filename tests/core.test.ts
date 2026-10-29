@@ -82,6 +82,21 @@ describe('helpers', () => {
     expect(findNeighbor(rects, 'b', 'down')).toBe('c');
     expect(findNeighbor(rects, 'a', 'left')).toBeNull();
   });
+  it('findNeighbor prefers the nearest cell that lines up over one straight below but farther', () => {
+    // Middle of a 3-card row; below it a row of 2 halves, then a full-width row.
+    const rects = {
+      mid: { left: 386, top: 0, width: 376, height: 320 },
+      half1: { left: 0, top: 378, width: 568, height: 240 },
+      half2: { left: 580, top: 378, width: 568, height: 240 },
+      wide: { left: 0, top: 676, width: 1148, height: 230 },
+      side: { left: 900, top: 0, width: 200, height: 100 },
+    };
+    expect(['half1', 'half2']).toContain(findNeighbor(rects, 'mid', 'down'));
+    expect(findNeighbor(rects, 'wide', 'up')).toBe('half1');
+    expect(findNeighbor(rects, 'mid', 'right')).toBe('side');
+    // Nothing lines up to the right of half2's row: fall back to the closest by centre.
+    expect(findNeighbor({ a: { left: 0, top: 0, width: 100, height: 100 }, b: { left: 150, top: 300, width: 100, height: 100 } }, 'a', 'right')).toBe('b');
+  });
   it('findMove skips cells that would refuse the item', () => {
     // A slot centred over a locked full-width header, then two slots under that: like the middle of a RowGrid.
     const rects = {

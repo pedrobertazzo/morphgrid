@@ -100,24 +100,33 @@ export function hitTest(rects: Record<string, Rect>, x: number, y: number): stri
 
 const DIRS: Record<Direction, [number, number]> = { right: [1, 0], left: [-1, 0], down: [0, 1], up: [0, -1] };
 
+// Cells that line up with the current one (overlap it across the direction of travel) win, nearest edge
+// first; otherwise the closest by centre, with sideways distance counting double.
 export function findNeighbor(rects: Record<string, Rect>, from: string, dir: Direction): string | null {
   const cur = rects[from];
   if (!cur) return null;
   const [dx, dy] = DIRS[dir];
   const cx = cur.left + cur.width / 2;
   const cy = cur.top + cur.height / 2;
+  const span = (r: Rect): [number, number] => (dx ? [r.top, r.top + r.height] : [r.left, r.left + r.width]);
+  const [c0, c1] = span(cur);
   let best: string | null = null;
-  let bestScore = Infinity;
+  let bestKey: [number, number, number] = [Infinity, Infinity, Infinity];
   for (const id in rects) {
     if (id === from) continue;
     const r = rects[id];
     const x = r.left + r.width / 2 - cx;
     const y = r.top + r.height / 2 - cy;
     const along = x * dx + y * dy;
+    if (along <= 4) continue;
     const across = Math.abs(x * dy - y * dx);
-    const score = along + across * 2;
-    if (along > 4 && score < bestScore) {
-      bestScore = score;
+    const [r0, r1] = span(r);
+    const inLine = Math.min(c1, r1) - Math.max(c0, r0) > 0;
+    // Gap between the facing edges: e.g. for "down", from this cell's bottom to that cell's top.
+    const gap = dx > 0 ? r.left - (cur.left + cur.width) : dx < 0 ? cur.left - (r.left + r.width) : dy > 0 ? r.top - (cur.top + cur.height) : cur.top - (r.top + r.height);
+    const key: [number, number, number] = inLine ? [0, Math.max(0, gap), across] : [1, along + across * 2, 0];
+    if (key[0] < bestKey[0] || (key[0] === bestKey[0] && (key[1] < bestKey[1] || (key[1] === bestKey[1] && key[2] < bestKey[2])))) {
+      bestKey = key;
       best = id;
     }
   }
