@@ -201,3 +201,12 @@ export function gridStyle(c: GridConfig): Record<string, string | undefined> {
     gridTemplateAreas: c.templateAreas?.map((r) => `"${r}"`).join(' '),
   };
 }
+
+// How fast (px per frame) a drag at `y` scrolls an area spanning top..bottom: negative within `edge` px of the top,
+// positive near the bottom, faster the closer it gets.
+export function edgeSpeed(y: number, top: number, bottom: number, edge = 64, max = 18): number {
+  const zone = Math.min(edge, (bottom - top) / 4);
+  if (y < top + zone) return -Math.ceil(max * Math.min(1, (top + zone - y) / zone));
+  if (y > bottom - zone) return Math.ceil(max * Math.min(1, (y - (bottom - zone)) / zone));
+  return 0;
+}

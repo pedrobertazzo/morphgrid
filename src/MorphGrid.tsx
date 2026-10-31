@@ -22,6 +22,7 @@ import {
   cycleItem,
   defaultAssignment,
   diff,
+  edgeSpeed,
   findCell,
   findMove,
   getShape,
@@ -67,7 +68,19 @@ type Gesture = {
   y: number;
   timer: ReturnType<typeof setTimeout> | null;
   lastTap: number;
+  cx: number;
+  cy: number;
+  frame: number;
 };
+
+function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY;
+    if ((o === 'auto' || o === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+
 
 const sameRects = (a: Record<string, Rect>, b: Record<string, Rect>) => {
   const ka = Object.keys(a);
@@ -97,6 +110,7 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
     renderCell,
     disabled,
     longPressMs = 230,
+    autoScroll = true,
     className,
     style,
   } = props;
@@ -202,11 +216,11 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
     [props.value, props.onChange, announce, describe, onAnnounce],
   );
 
-  const latest = useRef({ assignment, rects, canPlace, commit, onOpen, itemById, cellById, order, disabled, longPressMs });
-  latest.current = { assignment, rects, canPlace, commit, onOpen, itemById, cellById, order, disabled, longPressMs };
+  const latest = useRef({ assignment, rects, canPlace, commit, onOpen, itemById, cellById, order, disabled, longPressMs, autoScroll });
+  latest.current = { assignment, rects, canPlace, commit, onOpen, itemById, cellById, order, disabled, longPressMs, autoScroll };
   const gesture = useRef<Gesture>({
     itemId: null, pointerId: 0, touch: false, armed: false,
-    startX: 0, startY: 0, dx: 0, dy: 0, x: 0, y: 0, timer: null, lastTap: 0,
+    startX: 0, startY: 0, dx: 0, dy: 0, x: 0, y: 0, timer: null, lastTap: 0, cx: 0, cy: 0, frame: 0,
   });
   const pendingFocus = useRef<{ itemId: string; selector?: string } | null>(null);
 
@@ -228,6 +242,55 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
       }
     };
 
+    // Follows the pointer at viewport point (cx, cy): moves the block and updates the cell under it.
+    const track = (cx: number, cy: number) => {
+      const g = gesture.current;
+      const d = dragRef.current;
+      if (!d) return;
+      g.cx = cx;
+      g.cy = cy;
+      const L = latest.current;
+      const root = rootRef.current!.getBoundingClientRect();
+      const px = cx - root.left;
+      const py = cy - root.top;
+      const over = hitTest(L.rects, px, py);
+      let hit = d.hit;
+      let refused: string | null = null;
+      if (over) {
+        const ok = over === d.home || !!placeItem(d.snapshot, d.itemId, over, L.canPlace);
+        hit = ok ? over : d.home;
+        refused = ok ? null : over;
+      }
+      if (hit !== d.hit || refused !== d.refused) {
+        const r = L.rects[hit];
+        g.dx = Math.min(g.dx, r.width - 14);
+        g.dy = Math.min(g.dy, r.height - 14);
+        const next = { ...d, hit, refused };
+        dragRef.current = next;
+        setDrag(next);
+      }
+      g.x = px - g.dx;
+      g.y = py - g.dy;
+      place(d.itemId);
+    };
+
+    // While dragging, scrolls the page (or the grid's scrolling parent) when the pointer nears its top or bottom.
+    const scrollLoop = () => {
+      const g = gesture.current;
+      g.frame = 0;
+      if (!dragRef.current || !latest.current.autoScroll) return;
+      const box = scrollParent(rootRef.current!);
+      const area = box ? box.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+      const v = edgeSpeed(g.cy, Math.max(0, area.top), Math.min(window.innerHeight, area.bottom));
+      if (v) {
+        const before = box ? box.scrollTop : window.scrollY;
+        if (box) box.scrollTop += v;
+        else window.scrollBy(0, v);
+        if ((box ? box.scrollTop : window.scrollY) !== before) track(g.cx, g.cy);
+      }
+      g.frame = requestAnimationFrame(scrollLoop);
+    };
+
     const begin = () => {
       const g = gesture.current;
       const L = latest.current;
@@ -241,6 +304,9 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
       const d: Drag = { itemId: g.itemId, home, snapshot: L.assignment, hit: home, refused: null };
       dragRef.current = d;
       setDrag(d);
+      g.cx = g.startX;
+      g.cy = g.startY;
+      if (!g.frame) g.frame = requestAnimationFrame(scrollLoop);
       try {
         blockEls.current.get(g.itemId)?.setPointerCapture(g.pointerId);
       } catch {}
@@ -289,29 +355,7 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
         }
         return;
       }
-      const L = latest.current;
-      const root = rootRef.current!.getBoundingClientRect();
-      const px = e.clientX - root.left;
-      const py = e.clientY - root.top;
-      const over = hitTest(L.rects, px, py);
-      let hit = d.hit;
-      let refused: string | null = null;
-      if (over) {
-        const ok = over === d.home || !!placeItem(d.snapshot, d.itemId, over, L.canPlace);
-        hit = ok ? over : d.home;
-        refused = ok ? null : over;
-      }
-      if (hit !== d.hit || refused !== d.refused) {
-        const r = L.rects[hit];
-        g.dx = Math.min(g.dx, r.width - 14);
-        g.dy = Math.min(g.dy, r.height - 14);
-        const next = { ...d, hit, refused };
-        dragRef.current = next;
-        setDrag(next);
-      }
-      g.x = px - g.dx;
-      g.y = py - g.dy;
-      place(d.itemId);
+      track(e.clientX, e.clientY);
     };
 
     const onPointerUp = () => {
@@ -319,6 +363,8 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
       if (g.timer) clearTimeout(g.timer);
       g.timer = null;
       g.armed = false;
+      if (g.frame) cancelAnimationFrame(g.frame);
+      g.frame = 0;
       const d = dragRef.current;
       if (!d) return;
       dragRef.current = null;
@@ -364,7 +410,7 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
       L.commit(res.next, 'cycle', res.itemId, L.assignment);
     };
 
-    return { onPointerDown, onPointerMove, onPointerUp, onKeyDown, onCycle, onDoubleClick: open };
+    return { onPointerDown, onPointerMove, onPointerUp, onKeyDown, onCycle, onDoubleClick: open, track };
   }, []);
 
   useLayoutEffect(() => {
@@ -386,8 +432,17 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
     return () => root.removeEventListener('touchmove', stop);
   }, []);
 
+  // Scrolling by wheel or keyboard mid-drag moves the grid under a still pointer; keep the block with the pointer.
+  useEffect(() => {
+    if (!drag) return;
+    const follow = () => handlers.track(gesture.current.cx, gesture.current.cy);
+    addEventListener('scroll', follow, { capture: true, passive: true });
+    return () => removeEventListener('scroll', follow, { capture: true });
+  }, [!!drag, handlers]);
+
   useEffect(() => () => {
     if (gesture.current.timer) clearTimeout(gesture.current.timer);
+    if (gesture.current.frame) cancelAnimationFrame(gesture.current.frame);
   }, []);
 
   const placed: [string, string][] = [];

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  edgeSpeed,
   cycleItem,
   defaultAssignment,
   diff,
@@ -138,5 +139,21 @@ describe('helpers', () => {
       gap: '8px',
       gridTemplateAreas: '"a b" "c c"',
     });
+  });
+});
+
+describe('edgeSpeed', () => {
+  it('scrolls up near the top, down near the bottom, faster closer to the edge', () => {
+    expect(edgeSpeed(400, 0, 800)).toBe(0);
+    expect(edgeSpeed(70, 0, 800)).toBe(0);
+    expect(edgeSpeed(32, 0, 800)).toBe(-9);
+    expect(edgeSpeed(-20, 0, 800)).toBe(-18);
+    expect(edgeSpeed(790, 0, 800)).toBeGreaterThan(edgeSpeed(750, 0, 800));
+    expect(edgeSpeed(750, 0, 800)).toBeGreaterThan(0);
+  });
+
+  it('keeps the edge zone to a quarter of a short area', () => {
+    expect(edgeSpeed(30, 0, 100)).toBe(0);
+    expect(edgeSpeed(20, 0, 100)).toBeLessThan(0);
   });
 });

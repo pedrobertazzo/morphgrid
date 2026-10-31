@@ -76,6 +76,7 @@ export interface MorphGridProps<T, V extends string = string> {
   renderCell?: (cell: CellDef<V>, state: { over: boolean; empty: boolean }) => ReactNode;
   disabled?: boolean;
   longPressMs?: number;
+  autoScroll?: boolean;
   labels?: Partial<Labels>;
   className?: string;
   style?: CSSProperties;

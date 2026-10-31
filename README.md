@@ -577,6 +577,7 @@ cycleItem(a, 'corner', ['ana', 'ben', 'cy', 'dee'], 1);   // { next: { …, corn
 | `renderCell` | `(cell, { over, empty }) => ReactNode` | shows `hint` | |
 | `labels` | `Partial<Labels>` | English defaults | `cycle`, `cyclePrev`, `cycleNext`, `blockHint` |
 | `longPressMs` | `number` | `230` | Touch hold before dragging. |
+| `autoScroll` | `boolean` | `true` | Scroll the page, or the grid's scrolling parent, while a drag nears its top or bottom edge. |
 | `disabled` | `boolean` | `false` | |
 | `className` / `style` | | | Applied to the grid. |
 
