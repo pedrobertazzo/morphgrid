@@ -1,6 +1,6 @@
-import { createContext, useContext, useMemo, useRef, useState } from 'react';
-import { DefaultRowHeader, placeItem, RowGrid, rowSlotIds, type Assignment, type ChromeProps, type Row } from 'morphgrid';
-import { autoRows, CAPABILITIES, resolve, ROW_LAYOUT, slotsFor, VIEW_KEYS, type Insight, type ViewKey } from '../../data';
+import { createContext, useContext, useMemo, useState } from 'react';
+import { DefaultRowHeader, placeItem, RowGrid, rowSlotIds, type Assignment, type ChromeProps, type Section } from 'morphgrid';
+import { autoSections, CAPABILITIES, nativeFit, resolve, ROW_LAYOUT, slotsFor, VIEW_KEYS, type Insight, type ViewKey } from '../../data';
 import { renderView } from './views';
 
 const LABELS = Object.fromEntries(Object.entries(CAPABILITIES).map(([k, v]) => [k, v.label])) as Record<ViewKey, string>;
@@ -53,10 +53,12 @@ function SlotChrome(p: ChromeProps<Insight, ViewKey>) {
 }
 
 export function Board({ insights, onOpen }: { insights: Insight[]; onOpen: (i: Insight) => void }) {
-  const suggested = useMemo(() => autoRows(insights), [insights]);
-  const [rows, setRows] = useState<Row<ViewKey>[]>(suggested.rows);
+  const suggested = useMemo(() => autoSections(insights), [insights]);
+  const [sections, setSections] = useState<Section<ViewKey>[]>(suggested.sections);
   const [value, setValue] = useState<Assignment>(suggested.value);
-  const nextId = useRef(rows.length);
+  const [editing, setEditing] = useState(false);
+  const rows = sections.flatMap((s) => s.rows);
+  const setRows = (f: (v: ViewKey) => ViewKey) => setSections(sections.map((s) => ({ ...s, rows: s.rows.map((r) => ({ ...r, view: f(r.view) })) })));
   const api = useMemo<BoardApi>(
     () => ({
       items: insights,
@@ -74,25 +76,25 @@ export function Board({ insights, onOpen }: { insights: Insight[]; onOpen: (i: I
       <div className="toolbar">
         <label>
           Every row as
-          <select value={common} onChange={(e) => e.target.value && setRows(rows.map((r) => ({ ...r, view: e.target.value as ViewKey })))}>
+          <select value={common} onChange={(e) => e.target.value && setRows(() => e.target.value as ViewKey)}>
             {!common && <option value="">mixed</option>}
             {VIEW_KEYS.map((v) => <option key={v} value={v}>{LABELS[v]}</option>)}
           </select>
         </label>
-        <label>
-          Add a row of
-          <select value="" onChange={(e) => e.target.value && setRows([...rows, { id: `r${nextId.current++}`, view: e.target.value as ViewKey, slots: slotsFor(e.target.value as ViewKey) }])}>
-            <option value="">…</option>
-            {VIEW_KEYS.map((v) => <option key={v} value={v}>{LABELS[v]}</option>)}
-          </select>
-        </label>
-        <button onClick={() => (setRows(suggested.rows), setValue(suggested.value))}>Reset to suggested</button>
+        <button aria-pressed={editing} onClick={() => setEditing(!editing)}>{editing ? 'Done' : 'Edit layout'}</button>
+        <button onClick={() => (setSections(suggested.sections), setValue(suggested.value))}>Reset to suggested</button>
         <span className="hint">Each row's header sets how its slots draw. Drag data between rows, or pick it from a slot's title.</span>
       </div>
       <RowGrid<Insight, ViewKey>
         className="auto-grid"
-        rows={rows}
-        onRowsChange={setRows}
+        sections={sections}
+        onSectionsChange={setSections}
+        editing={editing}
+        suggest={(i, cell) => nativeFit(i, cell.view)}
+        makeRow={(offGrid) => {
+          const view = offGrid[0] ? VIEW_KEYS.find((v) => nativeFit(offGrid[0], v) && v !== 'text') ?? 'number' : 'number';
+          return { view, slots: slotsFor(view) };
+        }}
         rowLayout={ROW_LAYOUT}
         items={insights}
         value={value}
@@ -115,8 +117,8 @@ export function Board({ insights, onOpen }: { insights: Insight[]; onOpen: (i: I
           );
         }}
         renderSlot={(p) =>
-          p.over ? (
-            <span className="emptyslot">Drop to show as {lower(p.row.view)}</span>
+          p.over || p.suggested ? (
+            <span className="emptyslot">{p.suggested && !p.over ? '✦ Fits natively here' : `Drop to show as ${lower(p.row.view)}`}</span>
           ) : (
             <div className="emptyslot">
               <span>Drag data here, or</span>

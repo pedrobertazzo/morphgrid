@@ -108,6 +108,8 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
     announce,
     onAnnounce,
     renderCell,
+    suggest,
+    renderBand,
     disabled,
     longPressMs = 230,
     autoScroll = true,
@@ -464,9 +466,17 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
       className={'mg-grid' + (className ? ' ' + className : '') + (drag ? ' mg-has-drag' : '')}
       style={{ ...(gridStyle(config) as CSSProperties), ...style }}
     >
+      {config.bands &&
+        Object.entries(config.bands).map(([id, rows]) => (
+          <div key={'band:' + id} className="mg-band" data-band={id} style={{ gridRow: rows, gridColumn: '1 / -1' }}>
+            {renderBand?.(id)}
+          </div>
+        ))}
       {cells.map((c) => {
         const over = !!drag && drag.hit === c.id;
         const empty = !display[c.id];
+        const dragged = drag ? itemById.get(drag.itemId) : undefined;
+        const suggested = !!drag && !!suggest && !c.locked && dragged !== undefined && suggest(dragged, c);
         return (
           <div
             key={c.id}
@@ -476,9 +486,10 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
             data-refused={drag?.refused === c.id || undefined}
             data-empty={empty || undefined}
             data-locked={c.locked || undefined}
+            data-suggested={suggested || undefined}
             style={{ gridArea: config.areas?.[c.id] ?? c.area }}
           >
-            {renderCell ? renderCell(c, { over, empty }) : c.hint != null && <div className="mg-hint">{c.hint}</div>}
+            {renderCell ? renderCell(c, { over, empty, suggested }) : c.hint != null && <div className="mg-hint">{c.hint}</div>}
           </div>
         );
       })}
@@ -501,6 +512,7 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
             shape={getShape(rect.width, rect.height, shape)}
             dragging={isDragged}
             instant={instant.has(itemId)}
+            wave={drag || !width ? 0 : Math.round((rect.left / width) * 140)}
             nonce={nonce[itemId] ?? 0}
             label={labelOf(itemId)}
             viewLabel={viewLabels?.[cell.view] ?? cell.view}
@@ -531,6 +543,8 @@ type BlockProps<T, V extends string> = {
   shape: Shape;
   dragging: boolean;
   instant: boolean;
+  // Delay (ms) before a morph plays, so a row that changes view redraws left to right.
+  wave: number;
   nonce: number;
   label: string;
   viewLabel: string;
@@ -551,7 +565,11 @@ type BlockProps<T, V extends string> = {
 
 function BlockImpl<T, V extends string>(p: BlockProps<T, V>) {
   const { itemId, item, cell, width, height, shape, dragging, handlers, Chrome } = p;
-  const vp: ViewProps<T, V> = { item, itemId, cell, view: cell.view, width, height, shape, dragging };
+  // Remember the previous view across renders (state, not a ref, so StrictMode's double render agrees).
+  const [hist, setHist] = useState<{ view: V; from?: V; morphs: number }>({ view: cell.view, morphs: 0 });
+  if (hist.view !== cell.view) setHist({ view: cell.view, from: hist.view, morphs: hist.morphs + 1 });
+  const from = hist.view !== cell.view ? hist.view : hist.from;
+  const vp: ViewProps<T, V> = { item, itemId, cell, view: cell.view, width, height, shape, dragging, from };
 
   let content: ReactNode;
   if (typeof p.views === 'function') content = p.views(vp);
@@ -573,7 +591,7 @@ function BlockImpl<T, V extends string>(p: BlockProps<T, V>) {
     <div
       ref={ref}
       className={'mg-block' + (dragging ? ' mg-dragging' : '') + (p.instant ? ' mg-instant' : '')}
-      style={{ left: p.left, top: p.top, width, height }}
+      style={{ left: p.left, top: p.top, width, height, '--mg-wave': `${p.wave}ms` } as CSSProperties}
       tabIndex={0}
       role="group"
       aria-roledescription="movable item"
@@ -581,6 +599,7 @@ function BlockImpl<T, V extends string>(p: BlockProps<T, V>) {
       data-view={cell.view}
       data-locked={cell.locked || undefined}
       data-shape={shape}
+      data-from={from}
       onPointerDown={(e) => handlers.onPointerDown(e, itemId)}
       onPointerMove={handlers.onPointerMove}
       onPointerUp={handlers.onPointerUp}
@@ -608,6 +627,7 @@ function BlockImpl<T, V extends string>(p: BlockProps<T, V>) {
       ) : (
         content
       )}
+      {hist.morphs > 0 && <span className="mg-sheen" key={hist.morphs} aria-hidden />}
     </div>
   );
 }

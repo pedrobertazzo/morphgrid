@@ -21,6 +21,8 @@ export interface ViewProps<T, V extends string = string> {
   height: number;
   shape: Shape;
   dragging: boolean;
+  // The view this item showed before its latest morph, so a view can animate from it. Undefined on first show.
+  from?: V;
 }
 
 export type ViewComponent<T, V extends string = string> = ComponentType<ViewProps<T, V>>;
@@ -36,6 +38,13 @@ export interface ChromeProps<T, V extends string = string> extends ViewProps<T, 
   open: () => void;
   canCycle: boolean;
   labels: Labels;
+}
+
+export interface CellState {
+  over: boolean;
+  empty: boolean;
+  // A drag is on and `suggest` says this cell suits the dragged item.
+  suggested: boolean;
 }
 
 export type ChangeReason = 'drag' | 'keyboard' | 'cycle' | 'rows' | 'pick';
@@ -73,7 +82,11 @@ export interface MorphGridProps<T, V extends string = string> {
   onOpen?: (item: T, cell: CellDef<V>) => void;
   announce?: (detail: ChangeDetail, describe: (m: Move) => string) => string;
   onAnnounce?: (message: string) => void;
-  renderCell?: (cell: CellDef<V>, state: { over: boolean; empty: boolean }) => ReactNode;
+  renderCell?: (cell: CellDef<V>, state: CellState) => ReactNode;
+  // While dragging, cells this returns true for are marked as a good fit (data-suggested) for the dragged item.
+  suggest?: (item: T, cell: CellDef<V>) => boolean;
+  // Content for each of the layout's bands (see GridConfig.bands), drawn behind the cells.
+  renderBand?: (id: string) => ReactNode;
   disabled?: boolean;
   longPressMs?: number;
   autoScroll?: boolean;

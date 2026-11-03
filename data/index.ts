@@ -9,7 +9,7 @@ export { toRows, flatten, parseCSV, jsonAdapter, csvAdapter, type DataAdapter } 
 export { profile } from './profile';
 export { infer, refine, summarize, cacheKey, type SemanticProvider, type SemanticHint, type SchemaSummary } from './semantics';
 export { generate, pick, fmt } from './insights';
-export { autoRows, slotsFor, facets, fits, resolve, viewsFor, CAPABILITIES, CHAINS, MAX_SLOTS, ROW_LAYOUT, VIEW_KEYS, type ViewKey, type AutoRows, type Resolved } from './grid';
+export { autoRows, autoSections, nativeFit, slotsFor, facets, fits, resolve, viewsFor, CAPABILITIES, CHAINS, MAX_SLOTS, ROW_LAYOUT, VIEW_KEYS, type ViewKey, type AutoRows, type AutoSections, type Resolved } from './grid';
 
 export interface Analysis {
   dataset: MorphDataset;

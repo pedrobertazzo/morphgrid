@@ -1,5 +1,5 @@
 import type { Assignment } from '../src/core';
-import { fillRows, type Row, type RowLayoutOptions } from '../src/rows';
+import { fillRows, type Row, type RowLayoutOptions, type Section } from '../src/rows';
 import { pick } from './insights';
 import type { Facet, Insight } from './types';
 
@@ -106,3 +106,37 @@ export function autoRows(insights: Insight[]): AutoRows {
   const rows = filled.map(([view, keys], n) => ({ id: `r${n}`, view, slots: keys.length }));
   return { rows, value: fillRows(rows, filled.map(([, keys]) => keys)) };
 }
+
+export interface AutoSections {
+  sections: Section<ViewKey>[];
+  value: Assignment;
+}
+
+const GROUP: Record<ViewKey, string> = {
+  number: 'At a glance',
+  progress: 'At a glance',
+  text: 'At a glance',
+  line: 'Over time',
+  bars: 'Breakdowns',
+  dots: 'Breakdowns',
+  list: 'Leaders',
+  scatter: 'Relationships',
+};
+
+// autoRows, grouped into titled sections by what each row tells you: headline figures, change over time,
+// how things split, who leads, how measures relate.
+export function autoSections(insights: Insight[]): AutoSections {
+  const { rows, value } = autoRows(insights);
+  const sections: Section<ViewKey>[] = [];
+  for (const r of rows) {
+    const title = GROUP[r.view];
+    const s = sections.find((x) => x.title === title);
+    if (s) s.rows.push(r);
+    else sections.push({ id: `s${sections.length}`, title, rows: [r] });
+  }
+  // Rows keep their ids, so the slot assignment carries over unchanged.
+  return { sections, value };
+}
+
+// True when an insight draws natively in a view, with nothing missing: a drop there needs no fallback.
+export const nativeFit = (i: Insight, v: ViewKey) => resolve(i, v).fallback === false;

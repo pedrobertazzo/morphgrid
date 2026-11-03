@@ -167,6 +167,8 @@ export interface GridConfig {
   gap?: number | string;
   templateAreas?: string[];
   areas?: Record<string, string>;
+  // Decorations drawn behind the cells, as grid-row spans ("2 / 5") across all columns, keyed by id.
+  bands?: Record<string, string>;
 }
 
 export interface Breakpoint extends GridConfig {
@@ -185,7 +187,9 @@ export function resolveLayout(layout: GridLayout, width: number): GridConfig {
     .sort((a, b) => a.maxWidth - b.maxWidth)[0];
   if (!match) return base;
   const { maxWidth: _ignored, ...over } = match;
-  return { ...base, ...over, areas: { ...base.areas, ...over.areas } };
+  const out: GridConfig = { ...base, ...over, areas: { ...base.areas, ...over.areas } };
+  if (base.bands || over.bands) out.bands = { ...base.bands, ...over.bands };
+  return out;
 }
 
 const px = (v: number | string | undefined) => (typeof v === 'number' ? `${v}px` : v);

@@ -370,7 +370,36 @@ rowLayout={{
 
 **Getting items back.** Items that leave the grid aren't lost. Pressing **+** on a row fills the new slot with an item that isn't on the grid (the first in cycle order, or whichever `fillSlot(row, offGrid)` picks; `fillSlot={false}` leaves it empty). An empty slot shows "Drop here" and an **Add…** menu of the items not on the grid; picking one fires `onChange` with `reason: 'pick'`.
 
-**Customizing.** `renderHeader` replaces the header (it receives the row, how many slots are filled, and `setView`, `setSlots` and `remove`); wrap `DefaultRowHeader` to add to it. `renderSlot` draws empty slots: it receives the row, `offGrid` items and `place(item)`; wrap `DefaultSlot` to keep the menu. `viewOrder` sets which views the header offers, `maxSlots` caps slots per row (4), and `rowLabels` translates the header's labels.
+**Shrinking a row.** Pressing **−** removes empty slots first, right-most empty first, and the cards left slide together. A card only leaves the grid once the row has no empty slots left. `shrinkRow(items, slots)` is the same rule as a pure function.
+
+### Sections: parent blocks of rows
+
+Pass `sections` instead of `rows` to group rows into titled panels. A section holds rows the same way the board does, items still drag freely between any slots, and the whole section moves as one block, visualizations included.
+
+```tsx
+import { RowGrid, type Section } from 'morphgrid';
+
+const [sections, setSections] = useState<Section<View>[]>([
+  { id: 'glance', title: 'At a glance', rows: [{ id: 'kpis', view: 'number', slots: 4 }] },
+  { id: 'trends', title: 'Over time', rows: [{ id: 'charts', view: 'chart', slots: 2 }] },
+]);
+
+<RowGrid<Metric, View> sections={sections} onSectionsChange={setSections} editing={editing} /* …same props as before */ />
+```
+
+Row and section ids share one namespace (they become cell and grid-area names), so keep them distinct. Section headers are the locked cells `${section.id}-s`. `sectionLayout`, `sectionCells` and `allRows` are the helpers behind it.
+
+### Edit mode
+
+`editing` switches the structure tools on and off. Off, the board is clean: headers show their titles, and people can still drag cards between slots. On, every row and section gets:
+
+- a **grip** (⋮⋮): drag it and the board reorders live as you pass the middle of a neighbour, so whole rows and sections slide into place. Rows can be dragged into another section. With the grip focused, ↑ and ↓ move it one step.
+- **↑ / ↓** buttons, plus **−** / **+** / **×** on rows, an editable title, **+ Add row** and **×** on sections;
+- a footer with **+ Add row** and, with sections, **+ Add section** (`renderFooter` replaces it; `false` hides it).
+
+`editing` defaults to `true`, so boards written for 0.2 stay editable. `maxRows` caps the total number of rows. `makeRow(offGrid, section)` picks the view and slot count of a row added from the tools, and its slots fill through `fillSlot`.
+
+**Customizing.** `renderHeader` replaces the header (it receives the row, how many slots are filled, `setView`, `setSlots`, `remove`, `moveBy`, `insertRow` and a `handle` to spread on your grip, or use `<Grip {...handle} />`); `renderSection` does the same for section headers (`rename`, `remove`, `moveBy`, `addRow`, `handle`). Wrap `DefaultRowHeader` to add to it. `renderSlot` draws empty slots: it receives the row, `offGrid` items and `place(item)`; wrap `DefaultSlot` to keep the menu. `viewOrder` sets which views the header offers, `maxSlots` caps slots per row (4), and `rowLabels` translates the header's labels.
 
 ---
 
@@ -465,19 +494,29 @@ Return `''` from `announce` to stay quiet.
 
 ---
 
+### Smart drop hints
+
+`suggest(item, cell)` marks the cells that suit the item being dragged. They get `[data-suggested]` and a gentle pulse, and `RowGrid`'s empty slots say "✦ Best fit". Use it to point at the view an item reads best in. The bundled data module's `nativeFit(insight, view)` is true when the insight draws in that view with no fallback.
+
+### Morphing
+
+When an item changes view, the new view blurs into focus and a light sweeps across the card. When a whole row changes view, its cards redraw left to right. Views receive `from`, the view the item showed before, and blocks carry `[data-from]`, so a view can animate out of its previous form.
+
 ## Theming
 
 Import `morphgrid/styles.css` and override variables on `.mg-grid` (or on your own `className`):
 
 | Variable | Used for |
 | --- | --- |
-| `--mg-surface` | Block background |
+| `--mg-surface` / `--mg-surface-2` | Block background / page-level surface |
 | `--mg-ink` / `--mg-muted` | Text / secondary text |
 | `--mg-line` | Borders |
-| `--mg-accent` | Focus ring, drop target, view label |
+| `--mg-accent` / `--mg-accent-2` | Focus ring, drop target, view label / second sheen colour |
+| `--mg-shadow` / `--mg-shadow-hover` / `--mg-shadow-lift` | Block elevation at rest, on hover, while dragged |
+| `--mg-section-bg` / `--mg-section-pad` / `--mg-section-space` | Section panel background, padding, space between sections |
 | `--mg-radius` | Corner radius |
 | `--mg-pad` | Padding inside the default chrome |
-| `--mg-move` / `--mg-resize` / `--mg-ease` | Animation timing |
+| `--mg-move` / `--mg-resize` / `--mg-ease` / `--mg-spring` | Animation timing |
 
 ```css
 .book-grid {
@@ -492,8 +531,9 @@ Dark-mode defaults are included. The same variables apply inside `ItemView`.
 Useful hooks for your own CSS:
 
 - **Classes:** `.mg-block`, `.mg-dragging`, `.mg-cell`, `.mg-content`.
-- **Attributes on cells:** `[data-over]`, `[data-empty]`, `[data-locked]`, `[data-refused]`.
-- **Attributes on blocks:** `[data-view]`, `[data-shape]`, `[data-locked]`.
+- **Attributes on cells:** `[data-over]`, `[data-empty]`, `[data-locked]`, `[data-refused]`, `[data-suggested]`.
+- **Attributes on blocks:** `[data-view]`, `[data-shape]`, `[data-locked]`, `[data-from]`.
+- **Bands** (`.mg-band[data-band="section:…"]`, `[data-band="row:…"]`) are drawn behind each section and row; `.mg-editing` is on the grid in edit mode.
 
 ---
 
@@ -574,7 +614,9 @@ cycleItem(a, 'corner', ['ana', 'ben', 'cy', 'dee'], 1);   // { next: { …, corn
 | `shape` | `{ wide, tall }` | `{ 1.5, 0.8 }` | Aspect thresholds. |
 | `announce` | `(detail, describe) => string` | "X moved to Y; …" | |
 | `onAnnounce` | `(message) => void` | | |
-| `renderCell` | `(cell, { over, empty }) => ReactNode` | shows `hint` | |
+| `renderCell` | `(cell, { over, empty, suggested }) => ReactNode` | shows `hint` | |
+| `suggest` | `(item, cell) => boolean` | | Marks good drop targets during a drag. |
+| `renderBand` | `(id) => ReactNode` | | Content for `layout.bands`, drawn behind cells. |
 | `labels` | `Partial<Labels>` | English defaults | `cycle`, `cyclePrev`, `cycleNext`, `blockHint` |
 | `longPressMs` | `number` | `230` | Touch hold before dragging. |
 | `autoScroll` | `boolean` | `true` | Scroll the page, or the grid's scrolling parent, while a drag nears its top or bottom edge. |
@@ -596,7 +638,7 @@ cycleItem(a, 'corner', ['ana', 'ben', 'cy', 'dee'], 1);   // { next: { …, corn
 
 ### `GridLayout`
 
-`columns`, `rows`, `rowHeight`, `gap`, `templateAreas`, `areas`, `breakpoints: { maxWidth, ...any of these }[]`.
+`columns`, `rows`, `rowHeight`, `gap`, `templateAreas`, `areas`, `bands` (`{ id: "2 / 5" }` grid-row spans), `breakpoints: { maxWidth, ...any of these }[]`.
 
 ### `<RowGrid>` props
 
@@ -604,17 +646,25 @@ Everything `<MorphGrid>` takes except `cells`, `layout` and `renderCell`, plus:
 
 | Prop | Type | Default | |
 | --- | --- | --- | --- |
-| `rows` | `Row<V>[]` | required | `{ id, view, slots }`. Ids become grid area names: letters, digits, `-`, `_`. |
+| `rows` | `Row<V>[]` | | `{ id, view, slots }`. Ids become grid area names: letters, digits, `-`, `_`. |
 | `onRowsChange` | `(rows) => void` | | Makes headers editable. |
+| `sections` | `Section<V>[]` | | `{ id, title, rows }`, instead of `rows`. |
+| `onSectionsChange` | `(sections) => void` | | |
+| `editing` | `boolean` | `true` | Show the structure tools. |
+| `maxRows` | `number` | no limit | |
+| `makeRow` | `(offGrid, section) => { view, slots }` | first view, 2 slots | Rows added from the tools. |
+| `renderSection` | `(p: SectionHeaderProps) => ReactNode` | `DefaultSectionHeader` | |
+| `renderFooter` | `false \| (p: FooterProps) => ReactNode` | `DefaultFooter` | |
 | `rowLayout` | `RowLayoutOptions<V>` | | `columns` (12), `gap` (12), `height` (200 or per view), `narrow` (`{ maxWidth, columns, perLine, height }` or `false`). |
 | `viewOrder` | `V[]` | keys of `views` | Views the header offers. |
 | `maxSlots` | `number` | `4` | |
 | `renderHeader` | `(p: RowHeaderProps) => ReactNode` | `DefaultRowHeader` | |
 | `renderSlot` | `(p: SlotProps) => ReactNode` | `DefaultSlot` | Empty slots: `row`, `slot`, `cellId`, `over`, `offGrid`, `place(item)`. |
 | `fillSlot` | `false \| (row, offGrid) => T \| undefined` | first off-grid item | What a slot added with + starts with. |
-| `rowLabels` | `Partial<RowLabels>` | English defaults | `type`, `fewer`, `more`, `remove`, `drop`, `add` |
+| `rowLabels` | `Partial<RowLabels>` | English defaults | `type`, `fewer`, `more`, `remove`, `drop`, `add`, `moveUp`, `moveDown`, `drag`, `addRow`, `addSection`, `removeSection`, `sectionTitle`, `newSection`, `suggested` |
 
-Row helpers: `rowCells`, `rowLayout`, `rowHeadId`, `rowSlotId`, `rowSlotIds`, `findRow`, `fillRows`, `rowItems`, `pruneRows`.
+Row helpers: `rowCells`, `rowLayout`, `rowHeadId`, `rowSlotId`, `rowSlotIds`, `findRow`, `fillRows`, `rowItems`, `pruneRows`, `shrinkRow`.
+Section helpers: `sectionCells`, `sectionLayout`, `sectionHeadId`, `allRows`, `locateRow`, `placeRow`, `moveRow`, `placeSection`, `moveSection`, `freshId`.
 
 ---
 
