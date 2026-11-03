@@ -152,6 +152,14 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
   }, [instant]);
 
   const [status, setStatus] = useState('');
+  // The card that just landed from a drag or arrow key, with a counter so each landing replays the pulse.
+  const [landed, setLanded] = useState<{ itemId: string; n: number } | null>(null);
+  // For the first moments after mount, blocks rise in row by row (the CSS only animates under .mg-entering).
+  const [entering, setEntering] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setEntering(false), 1700);
+    return () => clearTimeout(t);
+  }, []);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const cellEls = useRef(new Map<string, HTMLDivElement>());
@@ -172,6 +180,55 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
     if (rootRef.current) setWidth(rootRef.current.clientWidth);
     measure();
   });
+
+  // Cells and bands (row headers, section panels) jump to new grid positions when the layout changes; slide them
+  // from where they were instead, so a reordered row or section glides into place like the cards do.
+  const lastPos = useRef<{ width: number; at: Map<Element, { x: number; y: number; key: string }> } | null>(null);
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const els = root.querySelectorAll<HTMLElement>(':scope > .mg-cell, :scope > .mg-band');
+    const at = new Map<Element, { x: number; y: number; key: string }>();
+    els.forEach((el) => at.set(el, { x: el.offsetLeft, y: el.offsetTop, key: el.dataset.cell ?? el.dataset.band ?? '' }));
+    const prev = lastPos.current;
+    lastPos.current = { width: root.clientWidth, at };
+    if (!prev || prev.width !== root.clientWidth || typeof root.animate !== 'function') return;
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const before = new Map<string, { x: number; y: number }>();
+    prev.at.forEach((v) => before.set(v.key, v));
+    at.forEach((now, el) => {
+      const was = before.get(now.key);
+      if (!was) return;
+      const dx = was.x - now.x;
+      const dy = was.y - now.y;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      (el as HTMLElement).animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], {
+        duration: 420,
+        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+      });
+    });
+  });
+
+  // The spotlight: the pointer's position over the grid, as CSS variables every block and the backdrop can read.
+  const spot = useRef(0);
+  const onSpot = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'touch') return;
+    const root = rootRef.current;
+    if (!root || spot.current) return;
+    const { clientX, clientY } = e;
+    spot.current = requestAnimationFrame(() => {
+      spot.current = 0;
+      const r = root.getBoundingClientRect();
+      root.style.setProperty('--mg-x', `${clientX - r.left}px`);
+      root.style.setProperty('--mg-y', `${clientY - r.top}px`);
+      root.dataset.spot = '';
+    });
+  }, []);
+  const offSpot = useCallback(() => {
+    if (spot.current) cancelAnimationFrame(spot.current);
+    spot.current = 0;
+    delete rootRef.current?.dataset.spot;
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -211,6 +268,7 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
       const detail: ChangeDetail = { reason, itemId, moves };
       if (props.value === undefined) setInner(next);
       props.onChange?.(next, detail);
+      if (reason === 'drag' || reason === 'keyboard') setLanded((l) => ({ itemId, n: (l?.n ?? 0) + 1 }));
       const msg = announce ? announce(detail, describe) : moves.map(describe).join('; ') + '.';
       setStatus(msg);
       if (msg) onAnnounce?.(msg);
@@ -463,8 +521,10 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
   return (
     <div
       ref={rootRef}
-      className={'mg-grid' + (className ? ' ' + className : '') + (drag ? ' mg-has-drag' : '')}
+      className={'mg-grid' + (className ? ' ' + className : '') + (drag ? ' mg-has-drag' : '') + (entering ? ' mg-entering' : '')}
       style={{ ...(gridStyle(config) as CSSProperties), ...style }}
+      onPointerMove={onSpot}
+      onPointerLeave={offSpot}
     >
       {config.bands &&
         Object.entries(config.bands).map(([id, rows]) => (
@@ -482,6 +542,7 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
             key={c.id}
             ref={setCellEl(c.id)}
             className={'mg-cell' + (c.className ? ' ' + c.className : '')}
+            data-cell={c.id}
             data-over={over || undefined}
             data-refused={drag?.refused === c.id || undefined}
             data-empty={empty || undefined}
@@ -513,6 +574,8 @@ export function MorphGrid<T, V extends string = string>(props: MorphGridProps<T,
             dragging={isDragged}
             instant={instant.has(itemId)}
             wave={drag || !width ? 0 : Math.round((rect.left / width) * 140)}
+            enter={Math.round(Math.min(1000, rect.top * 0.45 + (width ? (rect.left / width) * 160 : 0)))}
+            landed={landed?.itemId === itemId && !isDragged ? landed.n : 0}
             nonce={nonce[itemId] ?? 0}
             label={labelOf(itemId)}
             viewLabel={viewLabels?.[cell.view] ?? cell.view}
@@ -545,6 +608,10 @@ type BlockProps<T, V extends string> = {
   instant: boolean;
   // Delay (ms) before a morph plays, so a row that changes view redraws left to right.
   wave: number;
+  // Delay (ms) of the entrance animation: lower rows and cells further right rise later.
+  enter: number;
+  // Non-zero (and changing) when this block just landed; replays the landing pulse.
+  landed: number;
   nonce: number;
   label: string;
   viewLabel: string;
@@ -591,7 +658,12 @@ function BlockImpl<T, V extends string>(p: BlockProps<T, V>) {
     <div
       ref={ref}
       className={'mg-block' + (dragging ? ' mg-dragging' : '') + (p.instant ? ' mg-instant' : '')}
-      style={{ left: p.left, top: p.top, width, height, '--mg-wave': `${p.wave}ms` } as CSSProperties}
+      style={
+        {
+          left: p.left, top: p.top, width, height,
+          '--mg-wave': `${p.wave}ms`, '--mg-enter': `${p.enter}ms`, '--mg-l': `${p.left}px`, '--mg-t': `${p.top}px`,
+        } as CSSProperties
+      }
       tabIndex={0}
       role="group"
       aria-roledescription="movable item"
@@ -628,6 +700,7 @@ function BlockImpl<T, V extends string>(p: BlockProps<T, V>) {
         content
       )}
       {hist.morphs > 0 && <span className="mg-sheen" key={hist.morphs} aria-hidden />}
+      {p.landed > 0 && <span className="mg-ring" key={`ring${p.landed}`} aria-hidden />}
     </div>
   );
 }

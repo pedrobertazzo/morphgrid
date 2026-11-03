@@ -502,6 +502,16 @@ Return `''` from `announce` to stay quiet.
 
 When an item changes view, the new view blurs into focus and a light sweeps across the card. When a whole row changes view, its cards redraw left to right. Views receive `from`, the view the item showed before, and blocks carry `[data-from]`, so a view can animate out of its previous form.
 
+### Wow effects
+
+A few touches come built in, all off under `prefers-reduced-motion`:
+
+- **Entrance.** On first paint, cards rise in row by row, left to right.
+- **Spotlight.** A soft glow follows the pointer over the board, and card borders light up as it passes. Tune it with `--mg-spot` (colour) and `--mg-spot-size`. The pointer position is in `--mg-x` / `--mg-y` on the grid if you want to use it in your own CSS.
+- **Gliding layout.** When rows or sections reorder, their headers and panels slide to their new places along with the cards.
+- **Landing.** A ring ripples out from a card dropped by drag or arrow key.
+- **Blueprint.** In edit mode, a dot grid fades in behind the board.
+
 ## Theming
 
 Import `morphgrid/styles.css` and override variables on `.mg-grid` (or on your own `className`):
@@ -516,6 +526,7 @@ Import `morphgrid/styles.css` and override variables on `.mg-grid` (or on your o
 | `--mg-section-bg` / `--mg-section-pad` / `--mg-section-space` | Section panel background, padding, space between sections |
 | `--mg-radius` | Corner radius |
 | `--mg-pad` | Padding inside the default chrome |
+| `--mg-spot` / `--mg-spot-size` | Pointer spotlight colour and radius |
 | `--mg-move` / `--mg-resize` / `--mg-ease` / `--mg-spring` | Animation timing |
 
 ```css

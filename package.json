@@ -1,6 +1,6 @@
 {
   "name": "morphgrid",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A React grid where the cell decides how an item is shown. Drag items between cells and they morph to fit.",
   "keywords": [
     "react",

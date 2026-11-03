@@ -18,6 +18,8 @@
   --mg-section-space: 20px;
   --mg-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --mg-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --mg-spot: var(--mg-accent);
+  --mg-spot-size: 420px;
   --mg-move: 0.42s;
   --mg-resize: 0.3s;
   color: var(--mg-ink);
@@ -40,6 +42,65 @@
   }
 }
 .mg-grid { position: relative; display: grid; isolation: isolate; }
+
+/* Spotlight: a soft glow follows the pointer over the board, and card borders catch it as it passes. */
+.mg-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(var(--mg-spot-size) circle at var(--mg-x, -999px) var(--mg-y, -999px), color-mix(in srgb, var(--mg-spot) 16%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.mg-grid[data-spot]::before { opacity: 1; }
+.mg-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(300px circle at calc(var(--mg-x, -999px) - var(--mg-l, 0px)) calc(var(--mg-y, -999px) - var(--mg-t, 0px)), color-mix(in srgb, var(--mg-spot) 70%, white), color-mix(in srgb, var(--mg-spot) 30%, transparent) 40%, transparent 75%);
+  padding: 1.5px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.mg-grid[data-spot]:not(.mg-has-drag) .mg-block::after { opacity: 1; }
+
+/* Entrance: on first paint, cards rise in row by row, left to right. */
+.mg-entering .mg-block { animation: mg-enter 0.7s var(--mg-ease) var(--mg-enter, 0ms) backwards; }
+@keyframes mg-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); filter: blur(4px); }
+}
+
+/* Landing: a ring ripples out from a card that was just dropped. */
+.mg-ring {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 2px var(--mg-accent), 0 0 0 0 color-mix(in srgb, var(--mg-accent) 45%, transparent);
+  animation: mg-ring 0.7s var(--mg-ease) forwards;
+}
+@keyframes mg-ring {
+  to { box-shadow: inset 0 0 0 0 transparent, 0 0 0 14px transparent; }
+}
+
+/* Edit mode: a blueprint dot grid fades in behind the board. */
+.mg-editing {
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--mg-accent) 28%, transparent) 1px, transparent 1.5px);
+  background-size: 18px 18px;
+  background-position: center;
+  animation: mg-blueprint 0.5s var(--mg-ease);
+}
+@keyframes mg-blueprint { from { background-size: 30px 30px; } }
 
 /* Bands: decorations behind cells, spanning grid lines (sections, rows) */
 .mg-band { position: relative; z-index: -1; pointer-events: none; min-width: 0; min-height: 0; }
@@ -374,6 +435,7 @@ input.mg-sectiontitle:focus { outline: none; border: 1px solid var(--mg-accent);
 
 @media (prefers-reduced-motion: reduce) {
   .mg-block, .mg-cell, .mg-band { transition: none; }
-  .mg-content, .mg-sheen, .mg-lift, .mg-cell[data-suggested], .mg-rowtools, .mg-grip { animation: none; }
+  .mg-content, .mg-sheen, .mg-lift, .mg-cell[data-suggested], .mg-rowtools, .mg-grip, .mg-ring, .mg-editing, .mg-entering .mg-block { animation: none; }
+  .mg-grid::before, .mg-block::after { display: none; }
   .mg-block.mg-dragging { transform: none; }
 }
